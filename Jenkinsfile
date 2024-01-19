@@ -51,9 +51,11 @@ pipeline {
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/TEST-*.xml'
-                    if (params.debug) {
-                        echo "Published test results."
+                    script {
+                        junit '**/target/surefire-reports/TEST-*.xml'
+                        if (params.debug) {
+                            echo "Published test results."
+                        }
                     }
                 }
             }
@@ -75,9 +77,6 @@ pipeline {
     post {
         always {
             cleanWs()
-            if (params.debug) {
-                echo "Cleaned up the workspace."
-            }
         }
     }
 }
