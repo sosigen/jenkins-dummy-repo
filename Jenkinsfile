@@ -8,16 +8,17 @@ pipeline {
         string(name: 'git_branch', defaultValue: 'main', description: 'Git branch to build')
     }
     tools {
-        maven 'Maven 3.9.6'
-        jdk 'OpenJDK 21'
+        maven 'maven'
     }
     stages {
         stage('Checkout') {
             steps {
-                echo "Checking out branch ${params.git_branch}"
-                checkout([$class: 'GitSCM', branches: [[name: "*/${params.git_branch}"]], userRemoteConfigs: [[url: 'https://github.com/sosigen/jenkins-dummy-repo.git']]])
-                if (params.debug) {
-                    echo "Checked out the specified branch."
+                script {
+                    echo "Checking out branch ${params.git_branch}"
+                    checkout([$class: 'GitSCM', branches: [[name: "*/${params.git_branch}"]], userRemoteConfigs: [[url: 'https://github.com/sosigen/jenkins-dummy-repo.git']]])
+                    if (params.debug) {
+                        echo "Checked out the specified branch."
+                    }
                 }
             }
         }
@@ -27,7 +28,7 @@ pipeline {
                     if (params.debug) {
                         echo "Starting build process..."
                     }
-                    def mvnHome = tool 'Maven 3.9.6'
+                    def mvnHome = tool 'maven'
                     sh "${mvnHome}/bin/mvn -B clean package"
                     if (params.debug) {
                         echo "Build completed."
