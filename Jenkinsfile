@@ -42,7 +42,7 @@ pipeline {
                     if (params.debug) {
                         echo "Running tests..."
                     }
-                    def mvnHome = tool 'Maven 3.9.6'
+                    def mvnHome = tool 'maven'
                     bat "${mvnHome}\\bin\\mvn test"
                     if (params.debug) {
                         echo "Testing completed."
