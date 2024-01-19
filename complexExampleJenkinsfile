@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['staging', 'production'], description: 'Choose the deployment environment.')
+        booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: true, description: 'Run integration tests')
+    }
+
+    stages {
+        stage('Preparation') {
+            parallel {
+                stage('Code Checkout') {
+                    agent { label 'build-server' }
+                    steps {
+                        checkout scm
+                    }
+                }
+                stage('Static Code Analysis') {
+                    agent { docker { image 'sonarsource/sonar-scanner-cli:latest' } }
+                    steps {
+                        sh 'sonar-scanner'
+                    }
+                }
+            }
+        }
+
+        stage('Testing') {
+            parallel {
+                stage('Unit Tests') {
+                    agent { docker { image 'maven:3.8.1-openjdk-11' } }
+                    steps {
+                        sh 'mvn test'
+                    }
+                }
+                stage('Integration Tests') {
+                    when { expression { params.RUN_INTEGRATION_TESTS } }
+                    agent { docker { image 'maven:3.8.1-openjdk-11' } }
+                    steps {
+                        sh 'mvn verify'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Environment') {
+            agent { label 'deploy-server' }
+            steps {
+                sh "deploy-scripts/deploy-to-${params.ENVIRONMENT}.sh"
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                def buildStatus = currentBuild.result ?: 'SUCCESS'
+                notifySlack("Deployment to ${params.ENVIRONMENT} - ${buildStatus}")
+                updateGrafanaDashboard(buildStatus, params.ENVIRONMENT)
+            }
+        }
+    }
+}
+
+def notifySlack(String message) {
+    slackSend(channel: '#deployments', message: message)
+}
+
+def updateGrafanaDashboard(String status, String env) {
+    sh "curl -X POST -H 'Content-Type: application/json' -d '{\"status\": \"${status}\", \"environment\": \"${env}\"}' https://grafana.company.com/api/dashboards/db/deployment-status"
+}
