@@ -29,7 +29,7 @@ pipeline {
                         echo "Starting build process..."
                     }
                     def mvnHome = tool 'maven'
-                    sh "${mvnHome}/bin/mvn -B clean package"
+                    bat "${mvnHome}\\bin\\mvn -B clean package"
                     if (params.debug) {
                         echo "Build completed."
                     }
@@ -43,7 +43,7 @@ pipeline {
                         echo "Running tests..."
                     }
                     def mvnHome = tool 'Maven 3.9.6'
-                    sh "${mvnHome}/bin/mvn test"
+                    bat "${mvnHome}\\bin\\mvn test"
                     if (params.debug) {
                         echo "Testing completed."
                     }
