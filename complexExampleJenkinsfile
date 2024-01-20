@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     parameters {
+        // dropdown z wyborem środowiska
         choice(name: 'ENVIRONMENT', choices: ['staging', 'production'], description: 'Choose the deployment environment.')
         booleanParam(name: 'RUN_INTEGRATION_TESTS', defaultValue: true, description: 'Run integration tests')
     }
@@ -10,12 +11,17 @@ pipeline {
         stage('Preparation') {
             parallel {
                 stage('Code Checkout') {
+                    // wybierz węzeł do budowania, może ma już skonfigurowane wszystkie narzędzia?
                     agent { label 'build-server' }
                     steps {
+                        // URL repozytorium możemy zdefiniować w UI, wtedy repozytorium
+                        // klonujemy w taki sposob
                         checkout scm
                     }
                 }
                 stage('Static Code Analysis') {
+                    // użyj obrazu dockera do wykonania statycznej analizy kodu
+                    // w tym przypadku sonarqube
                     agent { docker { image 'sonarsource/sonar-scanner-cli:latest' } }
                     steps {
                         sh 'sonar-scanner'
@@ -25,6 +31,7 @@ pipeline {
         }
 
         stage('Testing') {
+            // niech testy jednostkowe i integracyjne wykonują się równolegle
             parallel {
                 stage('Unit Tests') {
                     agent { docker { image 'maven:3.8.1-openjdk-11' } }
@@ -33,6 +40,7 @@ pipeline {
                     }
                 }
                 stage('Integration Tests') {
+                    // ta część wykona się przy odpowiednim stanie parametru
                     when { expression { params.RUN_INTEGRATION_TESTS } }
                     agent { docker { image 'maven:3.8.1-openjdk-11' } }
                     steps {
@@ -45,6 +53,7 @@ pipeline {
         stage('Deploy to Environment') {
             agent { label 'deploy-server' }
             steps {
+                // wdróż kod, ta część nie wykona się jeśli jakieś testy zakończą się błędem
                 sh "deploy-scripts/deploy-to-${params.ENVIRONMENT}.sh"
             }
         }
@@ -53,6 +62,7 @@ pipeline {
     post {
         always {
             script {
+                // po wszystkim powiadom zainteresowanych na slacku i uaktualnij dashboard
                 def buildStatus = currentBuild.result ?: 'SUCCESS'
                 notifySlack("Deployment to ${params.ENVIRONMENT} - ${buildStatus}")
                 updateGrafanaDashboard(buildStatus, params.ENVIRONMENT)
@@ -61,6 +71,7 @@ pipeline {
     }
 }
 
+// funkcje pomocniczne - pisane w groovym
 def notifySlack(String message) {
     slackSend(channel: '#deployments', message: message)
 }
